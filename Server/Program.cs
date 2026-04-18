@@ -15,5 +15,8 @@ class Program
         foreach (User user in userRepo.GetUsers()) {
             Console.WriteLine($"[{user.user_id}] {user.user_name} {user.password}");
         }
+        // userRepo.Register(new User(){user_name = "timbundon", password = "12345678"});
+        // User us = userRepo.Login(new User(){user_name = "timbundon", password = "12345678"});
+        // Console.WriteLine(us != null);
     }
 }
