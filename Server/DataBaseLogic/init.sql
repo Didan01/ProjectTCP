@@ -31,5 +31,5 @@ CREATE TABLE chat_members (
 CREATE TABLE chat_messages (
 	addition_id SERIAL PRIMARY KEY,
 	message_id INT REFERENCES messages(message_id),
-	user_id INT REFERENCES users(user_id)
+	chat_id INT REFERENCES chats(chat_id)
 );
