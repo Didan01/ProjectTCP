@@ -5,6 +5,6 @@ class Program
     static void Main()
     {
         Network network = new Network();
-        network.Connect("ip", 5000);
+        network.Connect("127.0.0.1", 5000);
     }
 }
