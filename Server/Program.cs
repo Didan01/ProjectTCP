@@ -12,11 +12,14 @@ class Program
         // Network network = new Network();
         // network.Start(5000);
         using UserRepository userRepo = new UserRepository();
+        using ChatRepository chatRepo = new ChatRepository();
         foreach (User user in userRepo.GetUsers()) {
             Console.WriteLine($"[{user.user_id}] {user.user_name} {user.password}");
         }
         // userRepo.Register(new User(){user_name = "timbundon", password = "12345678"});
-        // User us = userRepo.Login(new User(){user_name = "timbundon", password = "12345678"});
-        // Console.WriteLine(us != null);
+        User us = userRepo.Login(new User(){user_name = "timbundon", password = "12345678"});
+        Console.WriteLine(us != null);
+        //chatRepo.addUser(1, 1);
+        userRepo.SendMessage(1, new Messsage(){body = "hello", sender_id = 1, send_time = TimeOnly.FromDateTime(DateTime.Now).ToTimeSpan()});
     }
 }

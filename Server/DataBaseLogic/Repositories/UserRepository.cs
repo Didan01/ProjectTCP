@@ -54,7 +54,7 @@ class UserRepository: IDisposable {
             conn.Open();
             using (var transaction = conn.BeginTransaction()) {
                 try {
-                    string addMessageQuery = "INSERT INTO messages(send_time, body, sender_id) VALUES (@send_time, @body, @sender_id) RETURNING addition_id";
+                    string addMessageQuery = "INSERT INTO messages(send_time, body, sender_id) VALUES (@send_time, @body, @sender_id) RETURNING message_id";
                     int message_id = conn.ExecuteScalar<int>(addMessageQuery, message, transaction);
                     string attachMessageQuery = "INSERT INTO chat_messages(message_id, chat_id) VALUES (@chat_id, @message_id)";
                     conn.Execute(attachMessageQuery, new {chat_id = chat_id, message_id = message_id}, transaction);
