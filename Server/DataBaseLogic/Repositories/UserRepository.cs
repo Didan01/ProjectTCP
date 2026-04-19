@@ -11,8 +11,13 @@ class UserRepository: IDisposable {
     public List<User> GetUsers() {
         using (var conn = dapperContext.DbConnection) {
             conn.Open();
-            string query = "SELECT * FROM users";
-            return conn.Query<User>(query).ToList();      
+            try {
+                string query = "SELECT * FROM users";
+                return conn.Query<User>(query).ToList();         
+            } catch (Exception e) {
+                Console.WriteLine($"Getting users error: {e.Message}");
+                return new List<User>(){};
+            }
         }
     }
     public User Login(User loginUser) {

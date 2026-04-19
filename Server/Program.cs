@@ -19,7 +19,10 @@ class Program
         // userRepo.Register(new User(){user_name = "timbundon", password = "12345678"});
         User us = userRepo.Login(new User(){user_name = "timbundon", password = "12345678"});
         Console.WriteLine(us != null);
-        //chatRepo.addUser(1, 1);
-        userRepo.SendMessage(1, new Messsage(){body = "hello", sender_id = 1, send_time = TimeOnly.FromDateTime(DateTime.Now).ToTimeSpan()});
+        foreach (Chat chat in chatRepo.GetChats()) {
+            Console.WriteLine($"[{chat.chat_id}] {chat.chat_name}");
+        }
+        chatRepo.KickUser(1, 1);
+        //userRepo.SendMessage(1, new Messsage(){body = "hello", sender_id = 1, send_time = TimeOnly.FromDateTime(DateTime.Now).ToTimeSpan()});
     }
 }
