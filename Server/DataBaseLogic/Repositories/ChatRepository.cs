@@ -77,6 +77,18 @@ class ChatRepository: IDisposable {
             }
         }
     }
+    public List<User> GetChatMembers(int chat_id) {
+        using (var conn = dapperContext.DbConnection) {
+            conn.Open();
+            try {
+                string query = "SELECT * FROM chat_members cm JOIN users u ON cm.user_id = u.user_id WHERE @chat_id = chat_id";
+                return conn.Query<User>(query, new {chat_id = chat_id}).ToList();
+            } catch (Exception e) {
+                Console.WriteLine($"getting members error: {e.Message}");
+                return new List<User>(){};
+            }
+        }
+    }
     public void Dispose() {
         dapperContext.DbConnection.Dispose();
     }
