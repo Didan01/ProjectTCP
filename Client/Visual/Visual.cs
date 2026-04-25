@@ -12,7 +12,7 @@ class Visual
     static int W => Console.WindowWidth;
     static int H => Console.WindowHeight;
 
-    static void Main()
+    static void Main1()
     {
         Console.CursorVisible = false;
         LoginScreen();

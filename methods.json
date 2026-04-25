@@ -1,0 +1,77 @@
+[
+    {
+        "command": "create_chat",
+        "sender_id": "1",
+        "args": {
+            "chat_name": ""
+        }
+    },
+    {
+        "command": "add_member",
+        "sender_id": "1",
+        "args": {
+            "user_id": "1",
+            "chat_id": "2"
+        }
+    },
+    {
+        "command": "kick_member",
+        "sender_id": "1",
+        "args": {
+            "user_id": "1",
+            "chat_id": "2"
+        }
+    },
+    {
+        "command": "send_message",
+        "sender_id": "1",
+        "args": {
+            "chat_id": "2",
+            "body": "hello world!"
+        }
+    },
+    {
+        "command": "login",
+        "sender_id": "-1",
+        "args": {
+            "user_name": "timbundon",
+            "password": "qwerty123"
+        }
+    },
+    {
+        "command": "register",
+        "sender_id": "-1",
+        "args": {
+            "user_name": "timbundon",
+            "password": "qwerty123"
+        }
+    },
+    {
+        "command": "get_chat_messages",
+        "sender_id": "1",
+        "args": {
+            "chat_id": "2"
+        }
+    },
+    {
+        "command": "get_chat_members",
+        "sender_id": "1",
+        "args": {
+            "chat_id": "2"
+        }
+    },
+    {
+        "command": "get_user",
+        "sender_id": "1",
+        "args": {
+            "user_id": "2"
+        }
+    },
+    {
+        "command": "get_chat",
+        "sender_id": "1",
+        "args": {
+            "chat_id": "2"
+        }
+    }
+]
