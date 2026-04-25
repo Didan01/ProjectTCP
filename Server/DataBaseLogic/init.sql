@@ -12,7 +12,7 @@ CREATE TABLE users (
 
 CREATE TABLE messages (
 	message_id SERIAL PRIMARY KEY,
-	send_time TIME,
+	send_time VARCHAR(100),
 	body VARCHAR(200),
 	sender_id INT REFERENCES users(user_id)
 );

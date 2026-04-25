@@ -1,77 +1,142 @@
 [
-    {
-        "command": "create_chat",
-        "sender_id": "1",
-        "args": {
-            "chat_name": ""
-        }
+  {
+    "method": "Создание чата",
+    "request": {
+      "command": "create_chat",
+      "sender_id": "1",
+      "args": { "chat_name": "Название чата" }
     },
-    {
-        "command": "add_member",
-        "sender_id": "1",
-        "args": {
-            "user_id": "1",
-            "chat_id": "2"
-        }
-    },
-    {
-        "command": "kick_member",
-        "sender_id": "1",
-        "args": {
-            "user_id": "1",
-            "chat_id": "2"
-        }
-    },
-    {
-        "command": "send_message",
-        "sender_id": "1",
-        "args": {
-            "chat_id": "2",
-            "body": "hello world!"
-        }
-    },
-    {
-        "command": "login",
-        "sender_id": "-1",
-        "args": {
-            "user_name": "timbundon",
-            "password": "qwerty123"
-        }
-    },
-    {
-        "command": "register",
-        "sender_id": "-1",
-        "args": {
-            "user_name": "timbundon",
-            "password": "qwerty123"
-        }
-    },
-    {
-        "command": "get_chat_messages",
-        "sender_id": "1",
-        "args": {
-            "chat_id": "2"
-        }
-    },
-    {
-        "command": "get_chat_members",
-        "sender_id": "1",
-        "args": {
-            "chat_id": "2"
-        }
-    },
-    {
-        "command": "get_user",
-        "sender_id": "1",
-        "args": {
-            "user_id": "2"
-        }
-    },
-    {
-        "command": "get_chat",
-        "sender_id": "1",
-        "args": {
-            "chat_id": "2"
-        }
+    "response": {
+      "command": "new_chat",
+      "args": { "chat_id": "10" }
     }
+  },
+  {
+    "method": "Добавление участника",
+    "request": {
+      "command": "add_member",
+      "sender_id": "1",
+      "args": { "user_id": "5", "chat_id": "2" }
+    },
+    "response": {
+      "command": "added_to_chat",
+      "args": { "user_id": "5", "chat_id": "2" }
+    },
+    "note": "Отправляется новому участнику и всем текущим членам чата."
+  },
+  {
+    "method": "Исключение участника",
+    "request": {
+      "command": "kick_member",
+      "sender_id": "1",
+      "args": { "user_id": "5", "chat_id": "2" }
+    },
+    "response": {
+      "command": "kicked_from_chat",
+      "args": { "user_id": "5", "chat_id": "2" }
+    }
+  },
+  {
+    "method": "Отправка сообщения",
+    "request": {
+      "command": "send_message",
+      "sender_id": "1",
+      "args": { "chat_id": "2", "body": "hello world!" }
+    },
+    "response": {
+      "command": "message_recive",
+      "args": {
+        "message": "{\"body\":\"hello world!\",\"sender_id\":1,\"send_time\":\"25.04.2026 14:00:00\"}"
+      }
+    },
+    "note": "Рассылается всем участникам чата, кроме отправителя."
+  },
+  {
+    "method": "Вход в систему (успешный)",
+    "request": {
+      "command": "login",
+      "sender_id": "-1",
+      "args": { "user_name": "timbundon", "password": "123" }
+    },
+    "response": {
+      "command": "loged",
+      "args": { "user_id": "1" }
+    }
+  },
+  {
+    "method": "Вход в систему (ошибка)",
+    "request": { "command": "login", "args": { "user_name": "wrong", "password": "000" } },
+    "response": {
+      "command": "loged",
+      "args": { "user_id": "" }
+    }
+  },
+  {
+    "method": "Регистрация",
+    "request": {
+      "command": "register",
+      "sender_id": "-1",
+      "args": { "user_name": "timbundon", "password": "123" }
+    },
+    "response": {
+      "command": "registered",
+      "args": { "success": "True" }
+    }
+  },
+  {
+    "method": "Получение сообщений чата",
+    "request": {
+      "command": "get_chat_messages",
+      "sender_id": "1",
+      "args": { "chat_id": "2" }
+    },
+    "response": {
+      "command": "chat_messsages",
+      "args": {
+        "messages": "[{\"body\":\"...\",\"sender_id\":1,...}]"
+      }
+    }
+  },
+  {
+    "method": "Получение списка участников",
+    "request": {
+      "command": "get_chat_members",
+      "sender_id": "1",
+      "args": { "chat_id": "2" }
+    },
+    "response": {
+      "command": "chat_members",
+      "args": {
+        "members": "[{\"user_id\":1,\"user_name\":\"...\"}]"
+      }
+    }
+  },
+  {
+    "method": "Получение данных пользователя",
+    "request": {
+      "command": "get_user",
+      "sender_id": "1",
+      "args": { "user_id": "2" }
+    },
+    "response": {
+      "command": "user",
+      "args": {
+        "user": "{\"user_id\":2,\"user_name\":\"...\"}"
+      }
+    }
+  },
+  {
+    "method": "Получение данных чата",
+    "request": {
+      "command": "get_chat",
+      "sender_id": "1",
+      "args": { "chat_id": "2" }
+    },
+    "response": {
+      "command": "chat",
+      "args": {
+        "chat": "{\"chat_id\":2,\"chat_name\":\"...\"}"
+      }
+    }
+  }
 ]

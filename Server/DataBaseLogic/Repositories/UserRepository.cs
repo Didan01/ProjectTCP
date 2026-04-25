@@ -61,7 +61,7 @@ class UserRepository: IDisposable {
                 try {
                     string addMessageQuery = "INSERT INTO messages(send_time, body, sender_id) VALUES (@send_time, @body, @sender_id) RETURNING message_id";
                     int message_id = conn.ExecuteScalar<int>(addMessageQuery, message, transaction);
-                    string attachMessageQuery = "INSERT INTO chat_messages(message_id, chat_id) VALUES (@chat_id, @message_id)";
+                    string attachMessageQuery = "INSERT INTO chat_messages(message_id, chat_id) VALUES (@message_id, @chat_id)";
                     conn.Execute(attachMessageQuery, new {chat_id = chat_id, message_id = message_id}, transaction);
                     transaction.Commit();
                     return true;
@@ -96,6 +96,18 @@ class UserRepository: IDisposable {
             } catch (Exception e) {
                 Console.WriteLine($"getting user chats error: {e.Message}");
                 return new List<Chat>(){};
+            }
+        }
+    }
+    public User GetUser(int user_id) {
+        using (var conn = dapperContext.DbConnection) {
+            conn.Open();
+            try {
+                string query = "SELECT * FROM users WHERE user_id = @user_id";
+                return conn.QueryFirstOrDefault(query, new {user_id = user_id});
+            } catch (Exception e) {
+                Console.WriteLine($"getting user error: {e.Message}");
+                return null;
             }
         }
     }

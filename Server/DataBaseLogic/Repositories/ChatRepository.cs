@@ -81,11 +81,35 @@ class ChatRepository: IDisposable {
         using (var conn = dapperContext.DbConnection) {
             conn.Open();
             try {
-                string query = "SELECT * FROM chat_members cm JOIN users u ON cm.user_id = u.user_id WHERE @chat_id = chat_id";
+                string query = "SELECT * FROM chat_members cm JOIN users u ON cm.user_id = u.user_id WHERE @chat_id = cm.chat_id";
                 return conn.Query<User>(query, new {chat_id = chat_id}).ToList();
             } catch (Exception e) {
                 Console.WriteLine($"getting members error: {e.Message}");
                 return new List<User>(){};
+            }
+        }
+    }
+    public List<Messsage> GetChatMessages(int chat_id) {
+        using (var conn = dapperContext.DbConnection) {
+            conn.Open();
+            try {
+                string query = "SELECT * FROM chat_messages cm JOIN messages m ON cm.message_id = m.message_id WHERE @chat_id = cm.chat_id";
+                return conn.Query<Messsage>(query, new {chat_id = chat_id}).ToList();
+            } catch (Exception e) {
+                Console.WriteLine($"getting members error: {e.Message}");
+                return new List<Messsage>(){};
+            }
+        }
+    }
+    public Chat GetChat(int chat_id) {
+        using (var conn = dapperContext.DbConnection) {
+            conn.Open();
+            try {
+                string query = "SELECT * FROM chats WHERE chat_id = @chat_id";
+                return conn.QueryFirstOrDefault(query, new {chat_id = chat_id});
+            } catch (Exception e) {
+                Console.WriteLine($"getting chat error: {e.Message}");
+                return null;
             }
         }
     }

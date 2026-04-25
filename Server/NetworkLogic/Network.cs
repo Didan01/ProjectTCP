@@ -17,10 +17,12 @@ public class Connection {
     public string connectionId;
     public Socket socket;
     public byte[] buffer;
+    public int user_id;
     public Connection(Socket s) {
         socket = s;
         buffer = new byte[1024];
         connectionId = Guid.NewGuid().ToString();
+        user_id = -1;
     }
 }
 
@@ -53,26 +55,162 @@ public class Network {
             if (request.command == "create_chat") {
                 int sender_id = int.Parse(request.sender_id);
                 int chat_id = userRepo.CreateChat(new Chat(){chat_name = request.args["chat_name"]});
+                chatRepo.AddUser(sender_id, chat_id);
                 Request response = new Request() {
                     command = "new_chat",
                     args = new Dictionary<string, string>() {
-                        ["body"] = request.args["body"]
-                    }
-                };
-            } else if (request.command == "send_message") {
-                Console.WriteLine(request.args["body"]);
-                Request response = new Request() {
-                    command = "message_recive",
-                    args = new Dictionary<string, string>() {
-                        ["body"] = request.args["body"]
+                        ["chat_id"] = chat_id.ToString(),
                     }
                 };
                 string responseText = JsonSerializer.Serialize(response);
                 byte[] responseRaw = Encoding.UTF8.GetBytes(responseText);
-                foreach (KeyValuePair<string, Connection> pair in connections) {
-                    pair.Value.socket.BeginSend(responseRaw, 0, responseRaw.Length, SocketFlags.None, SendCallback, pair.Value);
+                connection.socket.BeginSend(responseRaw, 0, responseRaw.Length, SocketFlags.None, SendCallback, connection);
+            } else if (request.command == "send_message") {
+                int chat_id = int.Parse(request.args["chat_id"]);
+                int sender_id = int.Parse(request.sender_id);
+                Messsage message = new Messsage(){body = request.args["body"], sender_id = sender_id, send_time = DateTime.Now.ToString()};
+                userRepo.SendMessage(chat_id, message);
+                Request response = new Request() {
+                    command = "message_recive",
+                    args = new Dictionary<string, string>() {
+                        ["message"] = JsonSerializer.Serialize(message),
+                    }
+                };
+                string responseText = JsonSerializer.Serialize(response);
+                byte[] responseRaw = Encoding.UTF8.GetBytes(responseText);
+                List<int> users = chatRepo.GetChatMembers(chat_id).Select(u => u.user_id).ToList();
+                Dictionary<string, Connection> members = connections.Where(p => users.Contains(p.Value.user_id) && p.Value.user_id != sender_id).ToDictionary();
+                foreach (var p in members) {
+                    p.Value.socket.BeginSend(responseRaw, 0, responseRaw.Length, SocketFlags.None, SendCallback, p.Value);
                 }
-            }   
+            } else if (request.command == "login") {
+                User loged = userRepo.Login(new User(){user_name = request.args["user_name"], password = request.args["password"]});
+                if (loged != null) {
+                    connection.user_id = loged.user_id;
+                    Request response = new Request() {
+                        command = "loged",
+                        args = new Dictionary<string, string>() {
+                            ["user_id"] = loged.user_id.ToString(),
+                        }
+                    };  
+                    string responseText = JsonSerializer.Serialize(response);
+                    byte[] responseRaw = Encoding.UTF8.GetBytes(responseText);
+                    connection.socket.BeginSend(responseRaw, 0, responseRaw.Length, SocketFlags.None, SendCallback, connection);
+                } else {
+                    Request response = new Request() {
+                        command = "loged",
+                        args = new Dictionary<string, string>() {
+                            ["user_id"] = "",
+                        }
+                    };  
+                    string responseText = JsonSerializer.Serialize(response);
+                    byte[] responseRaw = Encoding.UTF8.GetBytes(responseText);
+                    connection.socket.BeginSend(responseRaw, 0, responseRaw.Length, SocketFlags.None, SendCallback, connection);
+                }
+            } else if (request.command == "register") {
+                bool registered = userRepo.Register(new User(){user_name = request.args["user_name"], password = request.args["password"]});
+                Request response = new Request() {
+                    command = "registered",
+                    args = new Dictionary<string, string>() {
+                        ["success"] = registered.ToString(),
+                    }
+                };  
+                string responseText = JsonSerializer.Serialize(response);
+                byte[] responseRaw = Encoding.UTF8.GetBytes(responseText);
+                connection.socket.BeginSend(responseRaw, 0, responseRaw.Length, SocketFlags.None, SendCallback, connection);
+            } else if (request.command == "add_member") {
+                int user_id = int.Parse(request.args["user_id"]);
+                int chat_id = int.Parse(request.args["chat_id"]);
+                bool added = chatRepo.AddUser(user_id, chat_id);
+                Request response = new Request() {
+                    command = "added_to_chat",
+                    args = new Dictionary<string, string>() {
+                        ["user_id"] = request.args["user_id"],
+                        ["chat_id"] = request.args["chat_id"],
+                    }
+                };
+                string responseText = JsonSerializer.Serialize(response);
+                byte[] responseRaw = Encoding.UTF8.GetBytes(responseText);
+                List<int> users = chatRepo.GetChatMembers(chat_id).Select(u => u.user_id).ToList();
+                Dictionary<string, Connection> members = connections.Where(p => users.Contains(p.Value.user_id)).ToDictionary();
+                Connection reciver = connections.Where(p => p.Value.user_id == user_id).ToArray().FirstOrDefault().Value;
+                if (reciver != null) {
+                    reciver.socket.BeginSend(responseRaw, 0, responseRaw.Length, SocketFlags.None, SendCallback, reciver);   
+                }
+                foreach (var p in members) {
+                    p.Value.socket.BeginSend(responseRaw, 0, responseRaw.Length, SocketFlags.None, SendCallback, p.Value);
+                }
+            } else if (request.command == "kick_member") {
+                int user_id = int.Parse(request.args["user_id"]);
+                int chat_id = int.Parse(request.args["chat_id"]);
+                bool added = chatRepo.KickUser(user_id, chat_id);
+                Request response = new Request() {
+                    command = "kicked_from_chat",
+                    args = new Dictionary<string, string>() {
+                        ["user_id"] = request.args["user_id"],
+                        ["chat_id"] = request.args["chat_id"],
+                    }
+                };
+                string responseText = JsonSerializer.Serialize(response);
+                byte[] responseRaw = Encoding.UTF8.GetBytes(responseText);
+                List<int> users = chatRepo.GetChatMembers(chat_id).Select(u => u.user_id).ToList();
+                Dictionary<string, Connection> members = connections.Where(p => users.Contains(p.Value.user_id)).ToDictionary();
+                Connection reciver = connections.Where(p => p.Value.user_id == user_id).ToArray().FirstOrDefault().Value;
+                if (reciver != null) {
+                    reciver.socket.BeginSend(responseRaw, 0, responseRaw.Length, SocketFlags.None, SendCallback, reciver);   
+                }
+                foreach (var p in members) {
+                    p.Value.socket.BeginSend(responseRaw, 0, responseRaw.Length, SocketFlags.None, SendCallback, p.Value);
+                }
+            } else if (request.command == "get_chat_members") {
+                int chat_id = int.Parse(request.args["chat_id"]);
+                List<User> users = chatRepo.GetChatMembers(chat_id);
+                Request response = new Request() {
+                    command = "chat_members",
+                    args = new Dictionary<string, string>() {
+                        ["members"] = JsonSerializer.Serialize(users),
+                    }
+                };
+                string responseText = JsonSerializer.Serialize(response);
+                byte[] responseRaw = Encoding.UTF8.GetBytes(responseText);
+                connection.socket.BeginSend(responseRaw, 0, responseRaw.Length, SocketFlags.None, SendCallback, connection);
+            } else if (request.command == "get_chat_messages") {
+                int chat_id = int.Parse(request.args["chat_id"]);
+                List<Messsage> messsages = chatRepo.GetChatMessages(chat_id);
+                Request response = new Request() {
+                    command = "chat_messsages",
+                    args = new Dictionary<string, string>() {
+                        ["messages"] = JsonSerializer.Serialize(messsages),
+                    }
+                };
+                string responseText = JsonSerializer.Serialize(response);
+                byte[] responseRaw = Encoding.UTF8.GetBytes(responseText);
+                connection.socket.BeginSend(responseRaw, 0, responseRaw.Length, SocketFlags.None, SendCallback, connection);
+            } else if (request.command == "get_user") {
+                int user_id = int.Parse(request.args["user_id"]);
+                User user = userRepo.GetUser(user_id);
+                Request response = new Request() {
+                    command = "user",
+                    args = new Dictionary<string, string>() {
+                        ["user"] = JsonSerializer.Serialize(user),
+                    }
+                };
+                string responseText = JsonSerializer.Serialize(response);
+                byte[] responseRaw = Encoding.UTF8.GetBytes(responseText);
+                connection.socket.BeginSend(responseRaw, 0, responseRaw.Length, SocketFlags.None, SendCallback, connection);
+            } else if (request.command == "get_chat") {
+                int chat_id = int.Parse(request.args["chat_id"]);
+                Chat chat = chatRepo.GetChat(chat_id);
+                Request response = new Request() {
+                    command = "chat",
+                    args = new Dictionary<string, string>() {
+                        ["chat"] = JsonSerializer.Serialize(chat),
+                    }
+                };
+                string responseText = JsonSerializer.Serialize(response);
+                byte[] responseRaw = Encoding.UTF8.GetBytes(responseText);
+                connection.socket.BeginSend(responseRaw, 0, responseRaw.Length, SocketFlags.None, SendCallback, connection);
+            }
             connection.socket.BeginReceive(connection.buffer, 0, connection.buffer.Length, SocketFlags.None, RecivecallBack, connection);
         } catch (Exception e) {
             Console.Write($"error: {e.Message}");

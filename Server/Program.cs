@@ -29,7 +29,4 @@ class Program
         // //userRepo.SendMessage(1, new Messsage(){body = "hello", sender_id = 1, send_time = TimeOnly.FromDateTime(DateTime.Now).ToTimeSpan()});
         Network.Serve(5000);
     }
-    public static void SendMessage() {
-        ClientCertificateOption.SendMessage("text");
-    }
 }
