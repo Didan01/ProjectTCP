@@ -68,8 +68,8 @@ class ChatRepository: IDisposable {
         using (var conn = dapperContext.DbConnection) {
             conn.Open();
             try {
-                string query = "UPDATE chats SET @key = @value WHERE chat_id = @chat_id";
-                conn.Execute(query, new {chat_id = chat_id, key = key, value = value});
+                string query = $"UPDATE chats SET {key} = @value WHERE chat_id = @chat_id";
+                conn.Execute(query, new {chat_id = chat_id, value = value});
                 return true;
             } catch (Exception e) {
                 Console.WriteLine($"Changing chat error: {e.Message}");
@@ -106,7 +106,7 @@ class ChatRepository: IDisposable {
             conn.Open();
             try {
                 string query = "SELECT * FROM chats WHERE chat_id = @chat_id";
-                return conn.QueryFirstOrDefault(query, new {chat_id = chat_id});
+                return conn.QueryFirstOrDefault<Chat>(query, new {chat_id = chat_id});
             } catch (Exception e) {
                 Console.WriteLine($"getting chat error: {e.Message}");
                 return null;

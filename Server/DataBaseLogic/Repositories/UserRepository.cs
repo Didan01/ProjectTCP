@@ -104,7 +104,7 @@ class UserRepository: IDisposable {
             conn.Open();
             try {
                 string query = "SELECT * FROM users WHERE user_id = @user_id";
-                return conn.QueryFirstOrDefault(query, new {user_id = user_id});
+                return conn.QueryFirstOrDefault<User>(query, new {user_id = user_id});
             } catch (Exception e) {
                 Console.WriteLine($"getting user error: {e.Message}");
                 return null;

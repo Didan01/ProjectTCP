@@ -77,7 +77,7 @@ class Program
         if (resp != null && resp.success)
             Visual.NotifyCreateChat(true, int.Parse(resp.args["chat_id"]), name, "");
         else
-            Visual.NotifyCreateChat(false, -1, "", resp?.args.GetValueOrDefault("message", "") ?? "нет ответа");
+            Visual.NotifyCreateChat(false, -1, "", resp?.args.GetValueOrDefault("message", "") ?? "пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ");
     }
 
     static void AddUser(int chatId, string userName)
