@@ -46,6 +46,7 @@
     "response": {
       "command": "message_recive",
       "args": {
+        "chat_id": "1",
         "message": "{\"body\":\"hello world!\",\"sender_id\":1,\"send_time\":\"25.04.2026 14:00:00\"}"
       }
     },

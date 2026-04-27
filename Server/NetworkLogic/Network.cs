@@ -81,6 +81,7 @@ public class Network {
                     Request response = new Request() {
                         command = "message_recive",
                         args = new Dictionary<string, string>() {
+                            ["chat_id"] = chat_id.ToString(),
                             ["message"] = JsonSerializer.Serialize(message),
                         }
                     };
