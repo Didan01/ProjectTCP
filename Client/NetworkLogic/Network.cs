@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
@@ -14,122 +15,188 @@ public class Request
     public Dictionary<string, string> args { get; set; }
 }
 
-public class Response
+public static class Network
 {
-    public string command { get; set; }
-    public bool success { get; set; }
-    public Dictionary<string, string> args { get; set; }
-}
+    private static Socket socket;
+    private static Thread receiveThread;
+    private static volatile bool running;
 
-public class Network
-{
-    private TcpClient client;
-    private NetworkStream stream;
-    public bool connected = false;
-    public Action<Response> OnResponse;
+    private static int currentUserId = -1;
 
-    public bool Connect(string ip, int port)
+    private static readonly BlockingCollection<Request> responses = new();
+
+    public static Action<Request> OnPush;
+
+    private static readonly HashSet<string> responseCommands = new()
     {
-        try
-        {
-            client = new TcpClient();
-            client.Connect(ip, port);
-            stream = client.GetStream();
-            connected = true;
-            new Thread(ReceiveLoop) { IsBackground = true }.Start();
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        "loged", "registered", "new_chat", "chat_messsages", "user_chats"
+    };
+
+    public static void Connect(string host, int port)
+    {
+        socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        socket.Connect(host, port);
+
+        running = true;
+        receiveThread = new Thread(ReceiveLoop) { IsBackground = true };
+        receiveThread.Start();
     }
 
-    private void ReceiveLoop()
+    public static void SetUserId(int id) => currentUserId = id;
+
+    private static void ReceiveLoop()
     {
-        List<byte> accumulator = new();
-        byte[] buffer = new byte[4096];
+        var buffer = new byte[4096];
+        var SB = new StringBuilder();
 
-        while (true)
+        try
         {
-            try
+            while (running)
             {
-                int bytesRead = stream.Read(buffer, 0, buffer.Length);
-                if (bytesRead == 0) break;
+                int n = socket.Receive(buffer);
+                if (n == 0) break;
 
-                for (int i = 0; i < bytesRead; i++)
-                    accumulator.Add(buffer[i]);
+                SB.Append(Encoding.UTF8.GetString(buffer, 0, n));
 
-                while (accumulator.Count >= 4)
+                while (true)
                 {
-                    int length = BitConverter.ToInt32(accumulator.GetRange(0, 4).ToArray(), 0);
-                    if (accumulator.Count < 4 + length) break;
+                    string current = SB.ToString();
+                    int sep = current.IndexOf('\n');
+                    if (sep < 0) break;
 
-                    byte[] body = accumulator.GetRange(4, length).ToArray();
-                    accumulator.RemoveRange(0, 4 + length);
+                    string raw = current.Substring(0, sep);
+                    SB.Remove(0, sep + 1);
+
+                    Request request;
+                    try { request = JsonSerializer.Deserialize<Request>(raw); }
+                    catch { continue; }
+
+                    if (request == null || request.command == null) continue;
 
                     try
                     {
-                        Response response = JsonSerializer.Deserialize<Response>(Encoding.UTF8.GetString(body));
-                        OnResponse?.Invoke(response);
+                        if (responseCommands.Contains(request.command))
+                            responses.Add(request);
+                        else
+                            OnPush?.Invoke(request);
                     }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Parse: {ex.Message}");
-                    }
+                    catch { }
                 }
             }
-            catch
-            {
-                connected = false;
-                OnResponse?.Invoke(new Response
-                {
-                    command = "disconnected",
-                    success = false,
-                    args = new() { ["message"] = "Соединение разорвано" }
-                });
-                break;
-            }
+        }
+        catch { }
+        finally
+        {
+            running = false;
         }
     }
 
-    public void SendRequest(Request request)
+    private static void Send(Request request)
     {
-        if (!connected) return;
-        try
-        {
-            string json = JsonSerializer.Serialize(request);
-            byte[] body = Encoding.UTF8.GetBytes(json);
-            byte[] lenPrefix = BitConverter.GetBytes(body.Length);
+        if (request.sender_id == null && currentUserId != -1)
+            request.sender_id = currentUserId.ToString();
 
-            stream.Write(lenPrefix, 0, 4);
-            stream.Write(body, 0, body.Length);
-        }
-        catch
-        {
-            connected = false;
-        }
+        string json = JsonSerializer.Serialize(request);
+        byte[] json_str = Encoding.UTF8.GetBytes(json + "\n");
+        socket.Send(json_str);
     }
 
-    public Response SendAndWait(string command, Dictionary<string, string> args, int timeoutMs = 5000)
+    private static Request WaitResponse()
     {
-        Response result = null;
-        ManualResetEventSlim ev = new(false);
+        if (responses.TryTake(out var response, TimeSpan.FromSeconds(10)))
+            return response;
+        throw new Exception("Сервер не ответил вовремя");
+    }
 
-        void handler(Response r)
+    public static Request Login(string userName, string password)
+    {
+        Send(new Request
         {
-            if (r.command == command)
+            command = "login",
+            args = new() { ["user_name"] = userName, ["password"] = password }
+        });
+        return WaitResponse();
+    }
+
+    public static Request Register(string userName, string password)
+    {
+        Send(new Request
+        {
+            command = "register",
+            args = new() { ["user_name"] = userName, ["password"] = password }
+        });
+        return WaitResponse();
+    }
+
+    public static Request CreateChat(string chatName)
+    {
+        Send(new Request
+        {
+            command = "create_chat",
+            args = new() { ["chat_name"] = chatName }
+        });
+        return WaitResponse();
+    }
+
+    public static void SendMessage(int chatId, string body)
+    {
+        Send(new Request
+        {
+            command = "send_message",
+            args = new()
             {
-                result = r;
-                ev.Set();
+                ["chat_id"] = chatId.ToString(),
+                ["body"] = body
             }
-        }
+        });
+    }
 
-        OnResponse += handler;
-        SendRequest(new Request { command = command, args = args });
-        ev.Wait(timeoutMs);
-        OnResponse -= handler;
+    public static Request GetUserChats()
+    {
+        Send(new Request
+        {
+            command = "get_user_chats",
+            args = new() { ["user_id"] = currentUserId.ToString() }
+        });
+        return WaitResponse();
+    }
 
-        return result;
+    public static Request GetChatMessages(int chatId)
+    {
+        Send(new Request
+        {
+            command = "get_chat_messages",
+            args = new() { ["chat_id"] = chatId.ToString() }
+        });
+        return WaitResponse();
+    }
+
+    public static Request GetChatMembers(int chatId)
+    {
+        //Дописать
+        return null;
+    }
+
+    public static Request GetUser(int userId)
+    {
+        //Дописать
+        return null;
+    }
+
+    public static void AddMember(int userId, int chatId)
+    {
+        //Дописать
+    }
+
+    public static void KickMember(int userId, int chatId)
+    {
+        //Дописать
+    }
+
+    public static void Disconnect()
+    {
+        running = false;
+        try { socket?.Shutdown(SocketShutdown.Both); } catch { }
+        socket?.Close();
     }
 }

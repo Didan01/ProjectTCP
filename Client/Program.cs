@@ -1,177 +1,171 @@
-using Client;
-using Client.NetworkLogic;
-using Client.Visual;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using Client.NetworkLogic;
 
-class Program
+namespace Client;
+
+class User
 {
-    static Network network = new Network();
+    public int user_id { get; set; }
+    public string user_name { get; set; }
+    public string password { get; set; }
+}
+
+class Chat
+{
+    public int chat_id { get; set; }
+    public string chat_name { get; set; }
+}
+
+class Message
+{
+    public int message_id { get; set; }
+    public string send_time { get; set; }
+    public string body { get; set; }
+    public int sender_id { get; set; }
+}
+
+public static class Program
+{
+    private static int myId = -1;
 
     public static void Main()
     {
-        Visual.OnLogin = Login;
-        Visual.OnRegister = Register;
-        Visual.OnSendMessage = SendMessage;
-        Visual.OnCreateChat = CreateChat;
-        Visual.OnAddUser = AddUser;
-        Visual.OnKickUser = KickUser;
-        Visual.OnGetChatMembers = GetChatMembers;
-        Visual.OnLeaveChat = LeaveChat;
-        Visual.OnGetMessages = GetMessages;
-
-        network.OnResponse = HandleResponse;
-
-        Visual.Start();
-    }
-
-    static void Login(string name, string pass)
-    {
-        if (!network.connected)
-            if (!network.Connect("127.0.0.1", 5000))
-            { Visual.NotifyLogin(false); return; }
-
-        var resp = network.SendAndWait("login", new Dictionary<string, string>
+        try
         {
-            ["user_name"] = name,
-            ["password"] = pass
-        });
-
-        if (resp != null && resp.success)
-        {
-            Visual.SetUser(int.Parse(resp.args["user_id"]), resp.args["user_name"]);
-            network.SendRequest(new Request { command = "get_chats" });
+            Network.OnPush = Dispatch;
+            Network.Connect("192.168.1.117", 5000);
+            Visual.Visual.Start();
         }
-
-        Visual.NotifyLogin(resp != null && resp.success);
-    }
-
-    static void Register(string name, string pass)
-    {
-        if (!network.connected)
-            if (!network.Connect("127.0.0.1", 5000))
-            { Visual.NotifyRegister(false); return; }
-
-        var resp = network.SendAndWait("register", new Dictionary<string, string>
+        catch (Exception e)
         {
-            ["user_name"] = name,
-            ["password"] = pass
-        });
-
-        Visual.NotifyRegister(resp != null && resp.success);
-    }
-
-    static void SendMessage(int chatId, string body)
-    {
-        network.SendRequest(new Request
-        {
-            command = "send_message",
-            args = new() { ["chat_id"] = chatId.ToString(), ["body"] = body }
-        });
-    }
-
-    static void CreateChat(string name)
-    {
-        var resp = network.SendAndWait("create_chat", new() { ["chat_name"] = name });
-        if (resp != null && resp.success)
-            Visual.NotifyCreateChat(true, int.Parse(resp.args["chat_id"]), name, "");
-        else
-            Visual.NotifyCreateChat(false, -1, "", resp?.args.GetValueOrDefault("message", "") ?? "��� ������");
-    }
-
-    static void AddUser(int chatId, string userName)
-    {
-        var resp = network.SendAndWait("add_user", new()
-        {
-            ["chat_id"] = chatId.ToString(),
-            ["user_name"] = userName
-        });
-        Visual.NotifyAddUser(resp != null && resp.success, resp?.args.GetValueOrDefault("message", "") ?? "");
-    }
-
-    static void KickUser(int chatId, string userName)
-    {
-        var resp = network.SendAndWait("kick_user", new()
-        {
-            ["chat_id"] = chatId.ToString(),
-            ["user_name"] = userName
-        });
-        Visual.NotifyKickUser(resp != null && resp.success, resp?.args.GetValueOrDefault("message", "") ?? "");
-    }
-
-    static void GetChatMembers(int chatId)
-    {
-        network.SendRequest(new Request
-        {
-            command = "get_chat_members",
-            args = new() { ["chat_id"] = chatId.ToString() }
-        });
-    }
-
-    static void LeaveChat(int chatId)
-    {
-        var resp = network.SendAndWait("leave_chat", new() { ["chat_id"] = chatId.ToString() });
-        Visual.NotifyLeave(resp != null && resp.success);
-    }
-
-    static void GetMessages(int chatId)
-    {
-        network.SendRequest(new Request
-        {
-            command = "get_messages",
-            args = new() { ["chat_id"] = chatId.ToString() }
-        });
-    }
-
-    static void HandleResponse(Response resp)
-    {
-        switch (resp.command)
-        {
-            case "new_message":
-                Visual.AddMessage(
-                    int.Parse(resp.args["chat_id"]),
-                    int.Parse(resp.args["sender_id"]),
-                    resp.args["body"]
-                );
-                break;
-
-            case "get_chats":
-                var chats = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(resp.args["chats"]);
-                var list = new List<(int, string)>();
-                foreach (var c in chats)
-                    list.Add((c["chat_id"].GetInt32(), c["chat_name"].GetString()));
-                Visual.SetChats(list);
-                break;
-
-            case "get_chat_members":
-                int chatId = int.Parse(resp.args["chat_id"]);
-                var users = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(resp.args["members"]);
-                var memberList = new List<(int, string)>();
-                foreach (var u in users)
-                    memberList.Add((u["user_id"].GetInt32(), u["user_name"].GetString()));
-                Visual.SetChatMembers(chatId, memberList);
-                break;
-
-            case "get_messages":
-                int cid = int.Parse(resp.args["chat_id"]);
-                var msgs = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(resp.args["messages"]);
-                var msgList = new List<(int, string)>();
-                foreach (var m in msgs)
-                    msgList.Add((m["sender_id"].GetInt32(), m["body"].GetString()));
-                Visual.SetChatHistory(cid, msgList);
-                break;
-
-            case "added_to_chat":
-                Visual.AddChat(
-                    int.Parse(resp.args["chat_id"]),
-                    resp.args["chat_name"]
-                );
-                break;
-
-            case "removed_from_chat":
-                Visual.RemoveChat(int.Parse(resp.args["chat_id"]));
-                break;
+            Console.WriteLine($"Ошибка: {e.Message}");
+            Console.ReadLine();
         }
+        finally
+        {
+            Network.Disconnect();
+        }
+    }
+
+    public static void OnLogin(string userName, string password)
+    {
+        try
+        {
+            var resp = Network.Login(userName, password);
+            var userJson = resp.args["user"];
+
+            if (string.IsNullOrEmpty(userJson) || userJson == "null")
+            {
+                Visual.Visual.NotifyLogin(false);
+                return;
+            }
+
+            var user = JsonSerializer.Deserialize<User>(userJson);
+            myId = user.user_id;
+            Network.SetUserId(user.user_id);
+            Visual.Visual.SetUser(user.user_id, user.user_name);
+
+            LoadUserChats();
+            Visual.Visual.NotifyLogin(true);
+        }
+        catch (Exception)
+        {
+            Visual.Visual.NotifyLogin(false);
+        }
+    }
+
+    public static void OnRegister(string userName, string password)
+    {
+        try
+        {
+            var resp = Network.Register(userName, password);
+            bool success = resp.args.TryGetValue("success", out var s) && s == "True";
+            Visual.Visual.NotifyRegister(success);
+        }
+        catch (Exception)
+        {
+            Visual.Visual.NotifyRegister(false);
+        }
+    }
+
+    private static void LoadUserChats()
+    {
+        var resp = Network.GetUserChats();
+        var chats = JsonSerializer.Deserialize<List<Chat>>(resp.args["chats"]);
+        var list = new List<(int, string)>();
+        foreach (var c in chats) list.Add((c.chat_id, c.chat_name));
+        Visual.Visual.SetChats(list);
+    }
+
+    public static void OnCreateChat(string name)
+    {
+        try
+        {
+            var resp = Network.CreateChat(name);
+            var chat = JsonSerializer.Deserialize<Chat>(resp.args["chat"]);
+            Visual.Visual.NotifyCreateChat(true, chat.chat_id, chat.chat_name, "");
+        }
+        catch (Exception e)
+        {
+            Visual.Visual.NotifyCreateChat(false, 0, "", e.Message);
+        }
+    }
+
+    public static void OnGetMessages(int chatId)
+    {
+        try
+        {
+            var resp = Network.GetChatMessages(chatId);
+            var msgs = JsonSerializer.Deserialize<List<Message>>(resp.args["messages"]);
+            var list = new List<(int, string)>();
+            foreach (var m in msgs) list.Add((m.sender_id, m.body));
+            Visual.Visual.SetChatHistory(chatId, list);
+        }
+        catch { }
+    }
+
+    public static void OnSendMessage(int chatId, string body)
+    {
+        try
+        {
+            Network.SendMessage(chatId, body);
+            Visual.Visual.AddMessage(chatId, myId, body);
+        }
+        catch { }
+    }
+
+    public static void OnGetMembers(int chatId)
+    {
+        //Дописать
+    }
+
+    public static void OnAddUser(int userId, int chatId)
+    {
+        //Дописать
+    }
+
+    public static void OnKickUser(int userId, int chatId)
+    {
+        //Дописать
+    }
+
+    private static void Dispatch(Request req)
+    {
+        try
+        {
+            switch (req.command)
+            {
+                case "message_recive":
+                    {
+                        int chatId = int.Parse(req.args["chat_id"]);
+                        var msg = JsonSerializer.Deserialize<Message>(req.args["message"]);
+                        Visual.Visual.AddMessage(chatId, msg.sender_id, msg.body);
+                        break;
+                    }
+            }
+        }
+        catch { }
     }
 }
