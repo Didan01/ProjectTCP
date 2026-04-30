@@ -29,7 +29,8 @@ public static class Network
 
     private static readonly HashSet<string> responseCommands = new()
     {
-        "loged", "registered", "new_chat", "chat_messsages", "user_chats"
+        "loged", "registered", "new_chat", "chat_members",
+        "chat_messsages", "user", "chat", "user_chats"
     };
 
     public static void Connect(string host, int port)
@@ -173,24 +174,48 @@ public static class Network
 
     public static Request GetChatMembers(int chatId)
     {
-        //Дописать
-        return null;
+        Send(new Request
+        {
+            command = "get_chat_members",
+            args = new() { ["chat_id"] = chatId.ToString() }
+        });
+        return WaitResponse();
     }
 
     public static Request GetUser(int userId)
     {
-        //Дописать
-        return null;
+        Send(new Request
+        {
+            command = "get_user",
+            args = new() { ["user_id"] = userId.ToString() }
+        });
+        return WaitResponse();
     }
 
     public static void AddMember(int userId, int chatId)
     {
-        //Дописать
+        Send(new Request
+        {
+            command = "add_member",
+            args = new()
+            {
+                ["user_id"] = userId.ToString(),
+                ["chat_id"] = chatId.ToString()
+            }
+        });
     }
 
     public static void KickMember(int userId, int chatId)
     {
-        //Дописать
+        Send(new Request
+        {
+            command = "kick_member",
+            args = new()
+            {
+                ["user_id"] = userId.ToString(),
+                ["chat_id"] = chatId.ToString()
+            }
+        });
     }
 
     public static void Disconnect()
