@@ -138,17 +138,25 @@ public static class Program
 
     public static void OnGetMembers(int chatId)
     {
-        //Дописать
+        try
+        {
+            var resp = Network.GetChatMembers(chatId);
+            var users = JsonSerializer.Deserialize<List<User>>(resp.args["members"]);
+            var list = new List<(int, string)>();
+            foreach (var u in users) list.Add((u.user_id, u.user_name));
+            Visual.Visual.SetChatMembers(chatId, list);
+        }
+        catch { }
     }
 
     public static void OnAddUser(int userId, int chatId)
     {
-        //Дописать
+        try { Network.AddMember(userId, chatId); } catch { }
     }
 
     public static void OnKickUser(int userId, int chatId)
     {
-        //Дописать
+        try { Network.KickMember(userId, chatId); } catch { }
     }
 
     private static void Dispatch(Request req)
@@ -162,6 +170,22 @@ public static class Program
                         int chatId = int.Parse(req.args["chat_id"]);
                         var msg = JsonSerializer.Deserialize<Message>(req.args["message"]);
                         Visual.Visual.AddMessage(chatId, msg.sender_id, msg.body);
+                        break;
+                    }
+                case "added_to_chat":
+                    {
+                        var chat = JsonSerializer.Deserialize<Chat>(req.args["chat"]);
+                        var user = JsonSerializer.Deserialize<User>(req.args["user"]);
+                        if (user.user_id == myId)
+                            Visual.Visual.AddChat(chat.chat_id, chat.chat_name);
+                        break;
+                    }
+                case "kicked_from_chat":
+                    {
+                        var chat = JsonSerializer.Deserialize<Chat>(req.args["chat"]);
+                        var user = JsonSerializer.Deserialize<User>(req.args["user"]);
+                        if (user.user_id == myId)
+                            Visual.Visual.RemoveChat(chat.chat_id);
                         break;
                     }
             }
