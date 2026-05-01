@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 
 namespace Client.Visual
 {
@@ -22,11 +23,20 @@ namespace Client.Visual
 
         static Dictionary<int, string> chats = new();
         static Dictionary<int, List<(int senderId, string text)>> messages = new();
+        static readonly Dictionary<int, Dictionary<int, string>> chatMembers = new();
+        static readonly Dictionary<int, string> allUsers = new();
+
+
+        static readonly object _lock = new();
 
         static int currentChatId = -1;
 
-        static int W => Console.WindowWidth;
-        static int H => Console.WindowHeight;
+        static string notificationText = "";
+        static DateTime notificationUntil = DateTime.MinValue;
+        const int NOTIFICATION_SECONDS = 4;
+
+        static int W => Math.Max(40, Console.WindowWidth);
+        static int H => Math.Max(15, Console.WindowHeight);
 
 
         public static void Start()
@@ -89,18 +99,18 @@ namespace Client.Visual
         public static void NotifyLogin(bool success)
         {
             if (success)
+            {
                 MainMenu();
+            }
             else
             {
-                Console.WriteLine("Ошибка входа");
-                Console.ReadLine();
+                ShowToast("Ошибка входа: неверный логин или пароль");
             }
         }
 
         public static void NotifyRegister(bool success)
         {
-            Console.WriteLine(success ? "Успешно!" : "Ошибка регистрации");
-            Console.ReadLine();
+            ShowToast(success ? "Регистрация успешна!" : "Имя пользователя уже занято!");
         }
 
         public static void SetUser(int id, string name)
@@ -194,36 +204,49 @@ namespace Client.Visual
 
         public static void SetChatHistory(int chatId, List<(int, string)> msgs)
         {
-            messages[chatId] = msgs;
+            lock (_lock) messages[chatId] = msgs ?? new List<(int senderId, string text)>();
         }
 
         // ================= CHATS =================
 
         public static void SetChats(List<(int id, string name)> list)
         {
-            chats.Clear();
-            foreach (var c in list)
-                chats[c.id] = c.name;
+            lock ( _lock)
+            {
+                chats.Clear();
+                if (list != null)
+                    foreach (var c in list) chats[c.id] = c.name;
+            }
         }
 
         public static void AddChat(int id, string name)
         {
-            chats[id] = name;
+            lock (_lock) chats[id] = name;
+            ShowNotification($"Вы добавлены в чат «{name}»");
         }
 
         public static void RemoveChat(int id)
         {
-            chats.Remove(id);
+            string removedName;
+            lock (_lock)
+            {
+                chats.TryGetValue(id, out removedName);
+                chats.Remove(id);
+                messages.Remove(id);
+                chatMembers.Remove(id);
+            }
+            ShowNotification($"Вы исключены из чата «{removedName ?? ""}»");
         }
 
         public static void NotifyCreateChat(bool success, int id, string name, string err)
         {
             if (success)
-                chats[id] = name;
+            {
+                lock (_lock) chats[id] = name;
+            }
             else
             {
-                Console.WriteLine(err);
-                Console.ReadLine();
+                ShowToast("Ошибка создания чата: " + err);
             }
         }
 
@@ -239,12 +262,6 @@ namespace Client.Visual
             Console.ReadLine();
         }
 
-        public static void NotifyLeave(bool success)
-        {
-            Console.WriteLine(success ? "Вы вышли из чата" : "Ошибка");
-            Console.ReadLine();
-        }
-
         public static void SetChatMembers(int chatId, List<(int, string)> users)
         {
             Console.Clear();
@@ -253,6 +270,53 @@ namespace Client.Visual
                 Console.WriteLine(u.Item2);
 
             Console.ReadLine();
+        }
+
+        public static void AddOrUpdateUser(int id, string name)
+        {
+            lock (_lock) allUsers[id] = name;
+        }
+
+        public static void ShowNotification(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            notificationText = text;
+            notificationUntil = DateTime.UtcNow.AddSeconds(NOTIFICATION_SECONDS);
+        }
+
+        static void DrawNotificationIfAny()
+        {
+            if (string.IsNullOrEmpty(notificationText)) return;
+            if (DateTime.UtcNow >= notificationUntil)
+            {
+                notificationText = "";
+                return;
+            }
+
+            int y = H - 2;
+            ClearInside(y);
+            string txt = "★ " + notificationText;
+            string display = Truncate(txt, W - 4);
+            int x = (W - display.Length) / 2;
+            if (x < 2) x = 2;
+            Console.SetCursorPosition(x, y);
+            Console.Write(display);
+        }
+
+        static bool NotificationTick()
+        {
+            if (!string.IsNullOrEmpty(notificationText)
+                && DateTime.UtcNow >= notificationUntil)
+            {
+                notificationText = "";
+                return true;
+            }
+            return false;
+        }
+
+        public static void SetUsersLoading(bool loading)
+        {
+
         }
 
         // ================= UI =================
@@ -292,16 +356,81 @@ namespace Client.Visual
             Console.Write("Сообщение (/back): ");
         }
 
+        static string Truncate(string s, int max)
+        {
+            if (s == null) return "";
+            if (s.Length <= max) return s;
+            if (max <= 0) return "";
+            return s.Substring(0, max);
+        }
+
         static void DrawCentered(string text, int y)
         {
-            Console.SetCursorPosition((W - text.Length) / 2, y);
-            Console.Write(text);
+            int x = (W - text.Length) / 2;
+            if (x < 1) x = 1;
+            ClearInside(y);
+            Console.SetCursorPosition(x, y);
+            Console.Write(Truncate(text, W - 2));
+        }
+
+        static void ClearInside(int y)
+        {
+            if (y <= 0 || y >= H - 1) return;
+            try
+            {
+                Console.SetCursorPosition(1, y);
+                Console.Write(new string(' ', Math.Max(0, W - 2)));
+            }
+            catch { }
         }
 
         static void DrawCenteredTop(string text)
         {
             Console.SetCursorPosition((W - text.Length) / 2, 1);
             Console.Write(text);
+        }
+
+        static void SafeClear()
+        {
+            try { Console.Clear(); }
+            catch
+            {
+            }
+        }
+
+        static string SafeReadLine()
+        {
+            Console.CursorVisible = true;
+            string s = Console.ReadLine();
+            Console.CursorVisible = false;
+            return s ?? "";
+        }
+
+        static string ReadPassword()
+        {
+            var sb = new StringBuilder();
+            while (true)
+            {
+                var k = Console.ReadKey(true);
+                if (k.Key == ConsoleKey.Enter) { Console.WriteLine(); break; }
+                if (k.Key == ConsoleKey.Backspace)
+                {
+                    if (sb.Length > 0) { sb.Length--; Console.Write("\b \b"); }
+                    continue;
+                }
+                if (char.IsControl(k.KeyChar)) continue;
+                sb.Append(k.KeyChar);
+                Console.Write('*');
+            }
+            return sb.ToString();
+        }
+
+        static void ShowToast(string text)
+        {
+            int y = H / 2;
+            DrawCentered(text, y);
+            DrawCentered("(нажмите Enter)", y + 1);
+            try { Console.ReadLine(); } catch { }
         }
     }
 }

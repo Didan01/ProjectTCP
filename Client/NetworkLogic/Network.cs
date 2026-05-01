@@ -24,6 +24,7 @@ public static class Network
     private static int currentUserId = -1;
 
     private static readonly BlockingCollection<Request> responses = new();
+    private static readonly object _lock = new();
 
     public static Action<Request> OnPush;
 
@@ -44,6 +45,7 @@ public static class Network
     }
 
     public static void SetUserId(int id) => currentUserId = id;
+    public static int GetUserId() => currentUserId;
 
     private static void ReceiveLoop()
     {
@@ -106,116 +108,161 @@ public static class Network
     {
         if (responses.TryTake(out var response, TimeSpan.FromSeconds(10)))
             return response;
-        throw new Exception("Сервер не ответил вовремя");
+        return null;
     }
 
     public static Request Login(string userName, string password)
     {
-        Send(new Request
+        lock (_lock)
         {
-            command = "login",
-            args = new() { ["user_name"] = userName, ["password"] = password }
-        });
-        return WaitResponse();
+            while (responses.TryTake(out _)) { }
+
+            Send(new Request
+            {
+                command = "login",
+                args = new() { ["user_name"] = userName, ["password"] = password }
+            });
+            return WaitResponse();
+        }
     }
 
     public static Request Register(string userName, string password)
     {
-        Send(new Request
+        lock (_lock)
         {
-            command = "register",
-            args = new() { ["user_name"] = userName, ["password"] = password }
-        });
-        return WaitResponse();
+            Send(new Request
+            {
+                command = "register",
+                args = new() { ["user_name"] = userName, ["password"] = password }
+            });
+            return WaitResponse();
+        }
     }
 
     public static Request CreateChat(string chatName)
     {
-        Send(new Request
+        lock (_lock)
         {
-            command = "create_chat",
-            args = new() { ["chat_name"] = chatName }
-        });
-        return WaitResponse();
+            Send(new Request
+            {
+                command = "create_chat",
+                args = new() { ["chat_name"] = chatName }
+            });
+            return WaitResponse();
+        }
     }
 
     public static void SendMessage(int chatId, string body)
     {
-        Send(new Request
+        lock (_lock)
         {
-            command = "send_message",
-            args = new()
+            Send(new Request
             {
-                ["chat_id"] = chatId.ToString(),
-                ["body"] = body
-            }
-        });
+                command = "send_message",
+                args = new()
+                {
+                    ["chat_id"] = chatId.ToString(),
+                    ["body"] = body
+                }
+            });
+        }
     }
 
     public static Request GetUserChats()
     {
-        Send(new Request
+        lock (_lock)
         {
-            command = "get_user_chats",
-            args = new() { ["user_id"] = currentUserId.ToString() }
-        });
-        return WaitResponse();
+            Send(new Request
+            {
+                command = "get_user_chats",
+                args = new() { ["user_id"] = currentUserId.ToString() }
+            });
+            return WaitResponse();
+        }
     }
 
     public static Request GetChatMessages(int chatId)
     {
-        Send(new Request
+        lock (_lock)
         {
-            command = "get_chat_messages",
-            args = new() { ["chat_id"] = chatId.ToString() }
-        });
-        return WaitResponse();
+            Send(new Request
+            {
+                command = "get_chat_messages",
+                args = new() { ["chat_id"] = chatId.ToString() }
+            });
+            return WaitResponse();
+        }
     }
 
     public static Request GetChatMembers(int chatId)
     {
-        Send(new Request
+        lock (_lock)
         {
-            command = "get_chat_members",
-            args = new() { ["chat_id"] = chatId.ToString() }
-        });
-        return WaitResponse();
+            Send(new Request
+            {
+                command = "get_chat_members",
+                args = new() { ["chat_id"] = chatId.ToString() }
+            });
+            return WaitResponse();
+        }
     }
 
     public static Request GetUser(int userId)
     {
-        Send(new Request
+        lock (_lock)
         {
-            command = "get_user",
-            args = new() { ["user_id"] = userId.ToString() }
-        });
-        return WaitResponse();
+            Send(new Request
+            {
+                command = "get_user",
+                args = new() { ["user_id"] = userId.ToString() }
+            });
+            return WaitResponse();
+        }
+    }
+
+    public static Request GetChat(int chatId)
+    {
+        lock (_lock)
+        {
+            Send(new Request
+            {
+                command = "get_chat",
+                args = new() { ["chat_id"] = chatId.ToString() }
+            });
+            return WaitResponse();
+        }
     }
 
     public static void AddMember(int userId, int chatId)
     {
-        Send(new Request
+        lock (_lock)
         {
-            command = "add_member",
-            args = new()
+            Send(new Request
             {
-                ["user_id"] = userId.ToString(),
-                ["chat_id"] = chatId.ToString()
-            }
-        });
+                command = "add_member",
+                args = new()
+                {
+                    ["user_id"] = userId.ToString(),
+                    ["chat_id"] = chatId.ToString()
+                }
+            });
+        }
     }
 
     public static void KickMember(int userId, int chatId)
     {
-        Send(new Request
+        lock (_lock)
         {
-            command = "kick_member",
-            args = new()
+            Send(new Request
             {
-                ["user_id"] = userId.ToString(),
-                ["chat_id"] = chatId.ToString()
-            }
-        });
+                command = "kick_member",
+                args = new()
+                {
+                    ["user_id"] = userId.ToString(),
+                    ["chat_id"] = chatId.ToString()
+                }
+            });
+        }
     }
 
     public static void Disconnect()
