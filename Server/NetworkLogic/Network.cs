@@ -95,7 +95,7 @@ public class Network {
                     }
                 } else if (request.command == "login") {
                     User loged = userRepo.Login(new User(){user_name = request.args["user_name"], password = request.args["password"]});
-                    connection.user_id = loged.user_id;
+                    if (loged != null) {connection.user_id = loged.user_id;}
                     Request response = new Request() {
                         command = "loged",
                         args = new Dictionary<string, string>() {

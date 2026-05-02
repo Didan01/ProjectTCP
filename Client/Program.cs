@@ -38,7 +38,7 @@ public static class Program
         try
         {
             Network.OnPush = Dispatch;
-            Network.Connect("192.168.1.73", 5000);
+            Network.Connect("192.168.1.80", 5000);
             Visual.Visual.Start();
         }
         catch (Exception e)
