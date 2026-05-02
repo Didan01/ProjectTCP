@@ -1,3 +1,4 @@
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -7,6 +8,91 @@ namespace Client.Visual
 {
     public static class Visual
     {
+        enum Lang { RU, EN }
+        static Lang currentLang = Lang.RU;
+        static bool langSelected = false;
+
+        static readonly Dictionary<string, (string ru, string en)> L = new()
+        {
+            ["title"] = ("TCP ЧАТ", "TCP CHAT"),
+            ["login"] = ("Вход", "Login"),
+            ["register"] = ("Регистрация", "Register"),
+            ["choose"] = ("Выберите цифру   Esc - выход", "Choose option   Esc - exit"),
+            ["login_label"] = ("Логин: ", "Login: "),
+            ["pass_label"] = ("Пароль: ", "Password: "),
+            ["loading"] = ("Вход...", "Logging in..."),
+            ["reg_success"] = ("Регистрация успешна!", "Registration successful!"),
+            ["reg_fail"] = ("Имя пользователя уже занято!", "Username already taken!"),
+            ["login_fail"] = ("Ошибка входа: неверный логин или пароль", "Login failed: wrong credentials"),
+            ["create_chat_title"] = ("СОЗДАНИЕ ЧАТА", "CREATE CHAT"),
+
+            ["users_title"] = ("ПОЛЬЗОВАТЕЛИ В СИСТЕМЕ", "USERS IN SYSTEM"),
+            ["loading_users"] = ("загрузка...", "loading..."),
+            ["total"] = ("Всего", "Total"),
+            ["scroll"] = ("Прокрутка", "Scroll"),
+            ["you"] = ("вы", "you"),
+
+            ["users_footer"] = ("↑/↓ — листать   Enter — к чатам   R — обновить   Esc — выйти",
+                                "↑/↓ — scroll   Enter — chats   R — refresh   Esc — exit"),
+
+            ["chats_title"] = ("ВАШИ ЧАТЫ", "YOUR CHATS"),
+            ["no_chats"] = ("(пока нет чатов - нажмите C для создания)", "(no chats yet - press C to create)"),
+            ["open_chat"] = ("Открыть чат", "Open chat"),
+            ["create_chat"] = ("Название чата: ", "Chat name: "),
+            ["chat_footer"] = ("Введите номер чата   C - создать чат   Esc — назад", "Enter chat number   C - create chat   Esc — back"),
+            ["you_chat"] = ("Вы", "You"),
+
+            ["chat_title"] = ("ЧАТ", "CHAT"),
+            ["members"] = ("УЧАСТНИКИ ЧАТА", "CHAT MEMBERS"),
+            ["no_members"] = ("(нет участников)", "(no members)"),
+            ["members_back"] = ("Нажмите любую клавишу для возврата...", "Press any key to return..."),
+
+            ["added"] = ("Вы были добавлены в чат", "You have been added to the chat"),
+            ["removed"] = ("Вы были исключены из", "You have been removed from the"),
+
+            ["nav_chat"] = ("↑/↓ PgUp/PgDn - навигация   add <id>   kick <id>   /members   Esc — назад",
+                            "↑/↓ PgUp/PgDn - navigation   add <id>   kick <id>   /members   Esc — back"),
+            ["error_chat"] = ("ошибка создания чата", "failed to send message"),
+            ["press_enter"] = ("(нажмите Enter)", "(press Enter)")
+        };
+
+        static void ChooseLanguage()
+        {
+            if (langSelected) return;
+
+            while (true)
+            {
+                SafeClear();
+                DrawHeader("LANGUAGE / ЯЗЫК");
+
+                DrawCentered("[1] Русский", 5);
+                DrawCentered("[2] English", 6);
+
+                DrawFooter("Select language");
+
+                var key = Console.ReadKey(true);
+
+                if (key.KeyChar == '1')
+                {
+                    currentLang = Lang.RU;
+                    langSelected = true;
+                    return;
+                }
+                else if (key.KeyChar == '2')
+                {
+                    currentLang = Lang.EN;
+                    langSelected = true;
+                    return;
+                }
+            }
+        }
+
+        static string T(string key)
+        {
+            if (!L.ContainsKey(key)) return key;
+            return currentLang == Lang.RU ? L[key].ru : L[key].en;
+        }
+
         static int currentUserId;
         static string currentUserName;
 
@@ -41,6 +127,9 @@ namespace Client.Visual
         {
             try { Console.OutputEncoding = Encoding.UTF8; } catch { }
             Console.CursorVisible = false;
+
+            ChooseLanguage();
+
             LoginScreen();
         }
 
@@ -56,13 +145,13 @@ namespace Client.Visual
             while (true)
             {
                 SafeClear();
-                DrawHeader("TCP ЧАТ");
+                DrawHeader(T("title"));
 
                 int y = 5;
-                DrawCentered("[1] Вход", y++);
-                DrawCentered("[2] Регистрация", y++);
+                DrawCentered("[1] " + T("login"), y++);
+                DrawCentered("[2] " + T("register"), y++);
 
-                DrawFooter("Выберите цифру   Esc - выход");
+                DrawFooter(T("choose"));
 
                 var key = Console.ReadKey(true);
 
@@ -72,31 +161,31 @@ namespace Client.Visual
                 if (key.KeyChar == '1')
                 {
                     SafeClear();
-                    DrawHeader("ВХОД");
+                    DrawHeader(T("login").ToUpper());
                     DrawFooter("");
                     Console.CursorVisible = true;
                     Console.SetCursorPosition(2, 4);
-                    Console.Write("Логин: ");
+                    Console.Write(T("login_label"));
                     string login = SafeReadLine();
                     Console.SetCursorPosition(2, 5);
-                    Console.Write("Пароль: ");
+                    Console.Write(T("pass_label"));
                     string pass = ReadPassword();
                     Console.CursorVisible = false;
 
-                    DrawCentered("Вход...", H / 2);
+                    DrawCentered(T("loading"), H / 2);
                     Client.Program.OnLogin(login, pass);
                 }
                 else if (key.KeyChar == '2')
                 {
                     SafeClear();
-                    DrawHeader("РЕГИСТРАЦИЯ");
+                    DrawHeader(T("register").ToUpper());
                     DrawFooter("");
                     Console.CursorVisible = true;
                     Console.SetCursorPosition(2, 4);
-                    Console.Write("Логин: ");
+                    Console.Write(T("login_label"));
                     string login = SafeReadLine();
                     Console.SetCursorPosition(2, 5);
-                    Console.Write("Пароль: ");
+                    Console.Write(T("pass_label"));
                     string pass = ReadPassword();
                     Console.CursorVisible = false;
 
@@ -113,13 +202,13 @@ namespace Client.Visual
             }
             else
             {
-                ShowToast("Ошибка входа: неверный логин или пароль");
+                ShowToast(T("login_fail"));
             }
         }
 
         public static void NotifyRegister(bool success)
         {
-            ShowToast(success ? "Регистрация успешна!" : "Имя пользователя уже занято!");
+            ShowToast(success ? T("reg_success") : T("reg_fail"));
         }
 
         static void UsersListScreen()
@@ -186,7 +275,7 @@ namespace Client.Visual
         static void DrawUsersList()
         {
             SafeClear();
-            DrawHeader($"ПОЛЬЗОВАТЕЛИ В СИСТЕМЕ");
+            DrawHeader(T("users_title"));
 
             List<(int id, string name)> users;
             lock (_lock) users = SnapshotUsers();
@@ -200,9 +289,9 @@ namespace Client.Visual
 
             int statusY = 2;
             Console.SetCursorPosition(contentLeft, statusY);
-            string loadStatus = usersLoading ? "  [загрузка...]" : "";
+            string loadStatus = usersLoading ? $"  [{T("loading_users")}]" : "";
             Console.Write(Truncate(
-                $"Всего: {total}    Прокрутка: {usersScroll}/{maxScroll}{loadStatus}",
+                $"{T("total")}: {total}    {T("scroll")}: {usersScroll}/{maxScroll}{loadStatus}",
                 W - 6));
 
             int listTop = statusY + 2;
@@ -218,7 +307,7 @@ namespace Client.Visual
             {
                 var u = users[i];
                 Console.SetCursorPosition(contentLeft, listTop + shown);
-                string marker = u.id == currentUserId ? " (вы)" : "";
+                string marker = u.id == currentUserId ? $" ({T("you")})" : "";
                 string line = $"{u.name}[{u.id}]{marker}";
                 Console.Write(Truncate(line, W - 6));
             }
@@ -229,7 +318,7 @@ namespace Client.Visual
                 Console.Write("▼");
             }
 
-            DrawFooter("↑/↓ — листать   Enter — к чатам   R — обновить   Esc — выйти");
+            DrawFooter(T("users_footer"));
         }
 
         static void ChatsScreen()
@@ -260,11 +349,11 @@ namespace Client.Visual
                     || key.KeyChar == 'с' || key.KeyChar == 'С')
                 {
                     SafeClear();
-                    DrawHeader("СОЗДАНИЕ ЧАТА");
+                    DrawHeader(T("create_chat_title"));
                     DrawFooter("");
                     Console.SetCursorPosition(2, 4);
                     Console.CursorVisible = true;
-                    Console.Write("Название чата: ");
+                    Console.Write(T("create_chat"));
                     string name = SafeReadLine();
                     Console.CursorVisible = false;
                     if (!string.IsNullOrWhiteSpace(name))
@@ -319,7 +408,7 @@ namespace Client.Visual
         static void DrawChats(string numBuffer = "")
         {
             SafeClear();
-            DrawHeader($"ВАШИ ЧАТЫ");
+            DrawHeader(T("chats_title"));
 
             List<(int id, string name)> snap;
             lock (_lock)
@@ -334,7 +423,7 @@ namespace Client.Visual
             if (snap.Count == 0)
             {
                 Console.SetCursorPosition(contentLeft, y);
-                Console.Write(Truncate("(пока нет чатов - нажмите C для создания)", W - 6));
+                Console.Write(Truncate(T("no_chats"), W - 6));
             }
             else
             {
@@ -352,10 +441,10 @@ namespace Client.Visual
                 int promptY = H - 3;
                 ClearInside(promptY);
                 Console.SetCursorPosition(contentLeft, promptY);
-                Console.Write(Truncate($"Открыть чат: {numBuffer} - Enter", W - 6));
+                Console.Write(Truncate($"{T("open_chat")}: {numBuffer} - Enter", W - 6));
             }
 
-            DrawFooter("Введите номер чата   C - создать чат   Esc — назад");
+            DrawFooter(T("chat_footer"));
         }
 
         static readonly StringBuilder inputBuffer = new();
@@ -500,7 +589,7 @@ namespace Client.Visual
             SafeClear();
             string chatName;
             lock (_lock) chats.TryGetValue(currentChatId, out chatName);
-            DrawHeader($"УЧАСТНИКИ ЧАТА: {chatName}");
+            DrawHeader($"{T("members")}: {chatName}");
 
             Client.Program.OnGetMembers(currentChatId);
 
@@ -518,7 +607,7 @@ namespace Client.Visual
             if (members.Count == 0)
             {
                 Console.SetCursorPosition(contentLeft, y);
-                Console.Write("(нет участников)");
+                Console.Write(T("no_members"));
             }
             else
             {
@@ -526,12 +615,12 @@ namespace Client.Visual
                 {
                     if (y >= H - 3) break;
                     Console.SetCursorPosition(contentLeft, y++);
-                    string marker = kv.Key == currentUserId ? " (вы)" : "";
+                    string marker = kv.Key == currentUserId ? $" {T("you")}" : "";
                     Console.Write(Truncate($"{kv.Value}[{kv.Key}]{marker}", W - 6));
                 }
             }
 
-            DrawFooter("Нажмите любую клавишу для возврата...");
+            DrawFooter(T("members_back"));
             try { Console.ReadKey(true); } catch { }
         }
         static List<(bool mine, string line)> RenderChatLines()
@@ -551,7 +640,7 @@ namespace Client.Visual
             foreach (var msg in snap)
             {
                 bool mine = msg.senderId == currentUserId;
-                string prefix = mine ? "Вы: " : $"{ResolveName(msg.senderId)}[{msg.senderId}]: ";
+                string prefix = mine ? $"{T("you_chat")}: " : $"{ResolveName(msg.senderId)}[{msg.senderId}]: ";
                 string full = prefix + (msg.text ?? "");
                 foreach (var seg in WrapText(full, maxWidth))
                     rendered.Add((mine, seg));
@@ -565,7 +654,7 @@ namespace Client.Visual
 
             string chatName;
             lock (_lock) chats.TryGetValue(currentChatId, out chatName);
-            DrawHeader($"ЧАТ: {chatName ?? ""} ({currentChatId})");
+            DrawHeader($"{T("chat_title")}: {chatName ?? ""} ({currentChatId})");
 
             int top = 2;
             int bottom = H - 5;
@@ -606,7 +695,7 @@ namespace Client.Visual
             Console.SetCursorPosition(contentLeft, H - 3);
             Console.Write(new string('─', contentWidth));
 
-            DrawFooter("↑/↓ PgUp/PgDn - навигация   add <id>   kick <id>   /members   Esc — назад");
+            DrawFooter(T("nav_chat"));
             DrawInputLine();
         }
 
@@ -638,7 +727,7 @@ namespace Client.Visual
             {
                 int maxWidth = Math.Max(10, W - 6);
                 bool mine = senderId == currentUserId;
-                string prefix = mine ? "Вы: " : $"{ResolveName(senderId)}[{senderId}]: ";
+                string prefix = mine ? $"{T("you_chat")}: " : $"{ResolveName(senderId)}[{senderId}]: ";
                 string full = prefix + (text ?? "");
                 foreach (var _ in WrapText(full, maxWidth)) extraLines++;
                 chatScroll += extraLines;
@@ -669,7 +758,7 @@ namespace Client.Visual
         public static void AddChat(int id, string name)
         {
             lock (_lock) chats[id] = name;
-            ShowNotification($"Вы добавлены в чат «{name}»");
+            ShowNotification($"{T("added")} «{name}»");
             if (currentScreen == Screen.Chats) dirty = true;
         }
 
@@ -683,7 +772,7 @@ namespace Client.Visual
                 messages.Remove(id);
                 chatMembers.Remove(id);
             }
-            ShowNotification($"Вы исключены из чата «{removedName ?? ""}»");
+            ShowNotification($"{T("removed")} «{removedName ?? ""}»");
             if (currentScreen == Screen.ChatRoom && currentChatId == id)
             {
                 currentScreen = Screen.Chats;
@@ -703,7 +792,7 @@ namespace Client.Visual
             }
             else
             {
-                ShowToast("Ошибка создания чата: " + err);
+                ShowToast(T("error_chat") + err);
             }
         }
 
@@ -924,7 +1013,7 @@ namespace Client.Visual
         {
             int y = H / 2;
             DrawCentered(text, y);
-            DrawCentered("(нажмите Enter)", y + 1);
+            DrawCentered(T("press_enter"), y + 1);
             try { Console.ReadLine(); } catch { }
         }
     }
